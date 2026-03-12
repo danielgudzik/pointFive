@@ -11,18 +11,18 @@ import (
 
 // Config holds server dependencies.
 type Config struct {
-	Addr                  string
-	Pipeline              *pipeline.ItemPipeline
-	Log                   *slog.Logger
-	ReadTimeoutSeconds    int
-	WriteTimeoutSeconds   int
+	Addr                   string
+	Pipeline               *pipeline.ItemPipeline
+	Log                    *slog.Logger
+	ReadTimeoutSeconds     int
+	WriteTimeoutSeconds    int
 	ShutdownTimeoutSeconds int
 }
 
 // Server wraps http.Server with a clean Run method.
 type Server struct {
-	http                  *http.Server
-	log                   *slog.Logger
+	http                   *http.Server
+	log                    *slog.Logger
 	shutdownTimeoutSeconds int
 }
 
@@ -35,6 +35,7 @@ func NewServer(cfg Config) *Server {
 	mux.HandleFunc("GET /jobs", h.listJobs)
 	mux.HandleFunc("POST /jobs", h.submitJob)
 	mux.HandleFunc("GET /jobs/{id}", h.getJob)
+	mux.HandleFunc("POST /jobs/{id}/retry", h.retryJob)
 
 	return &Server{
 		http: &http.Server{

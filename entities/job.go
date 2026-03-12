@@ -18,3 +18,8 @@ type Result struct {
 
 // ItemJob is a batch of Items submitted for processing.
 type ItemJob = wp.Job[Item, Result]
+
+// SubmitJobRequest is the request body for POST /jobs.
+type SubmitJobRequest struct {
+	Items []Item `json:"items"`
+}

@@ -16,7 +16,7 @@ import (
 type Job[In, Out any] struct {
 	ID        string    `json:"id"`
 	Status    string    `json:"status"` // pending | done
-	Items     []In      `json:"items"`
+	Items     map[string]In `json:"items"`
 	Results   []Out     `json:"results,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	DoneAt    time.Time `json:"done_at,omitempty"`
@@ -96,6 +96,7 @@ func (p *Pipeline[In, Out]) process(ctx context.Context, job *Job[In, Out]) {
 	for _, item := range job.Items {
 		itemCh <- item
 	}
+
 	close(itemCh)
 
 	// Wait for all workers, then close results
