@@ -42,7 +42,8 @@ main.go → api.NewServer() → handlers.go        (HTTP layer)
 ## Conventions (must follow)
 - Responses: `writeJSON(w, http.StatusXxx, val)` / `writeError(w, http.StatusXxx, "msg")`
 - Logging: `h.log.Info("msg", "key", val)` via `log/slog`
-- Thread safety: `p.mu.Lock()` writes, `p.mu.RLock()` reads on `p.jobs`
+- Thread safety: `p.mu.Lock()` writes, `p.mu.RLock()` reads on `p.jobs` and `p.cancels`
+- Job status values: `pending` | `done` | `cancelled`
 - Route syntax: `"METHOD /path/{param}"` (Go 1.22 mux); path params via `r.PathValue("name")`
 - Config: `config.Load()` returns `*AppConfig`; use `config.SERVER_ADDR` etc. constants for all env var keys
 - External dependency: `github.com/spf13/viper` (config loading only)
@@ -54,6 +55,7 @@ main.go → api.NewServer() → handlers.go        (HTTP layer)
 | GET | `/jobs` | `listJobs` |
 | POST | `/jobs` | `submitJob` |
 | GET | `/jobs/{id}` | `getJob` |
+| DELETE | `/jobs/{id}` | `cancelJob` |
 
 ## Commands
 - `make run`  — start server on :8080

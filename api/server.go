@@ -35,6 +35,7 @@ func NewServer(cfg Config) *Server {
 	mux.HandleFunc("GET /jobs", h.listJobs)
 	mux.HandleFunc("POST /jobs", h.submitJob)
 	mux.HandleFunc("GET /jobs/{id}", h.getJob)
+	mux.HandleFunc("DELETE /jobs/{id}", h.cancelJob)
 
 	return &Server{
 		http: &http.Server{
