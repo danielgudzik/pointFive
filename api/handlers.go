@@ -4,20 +4,20 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/example/pointfive/entities"
 	"github.com/example/pointfive/pipeline"
+	"github.com/example/pointfive/utils/httputil"
 )
 
 type handlers struct {
-	pipe *pipeline.Pipeline
+	pipe *pipeline.ItemPipeline
 	log  *slog.Logger
 }
 
 // GET /health
 func (h *handlers) health(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	httputil.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 // POST /jobs
@@ -27,35 +27,35 @@ func (h *handlers) submitJob(w http.ResponseWriter, r *http.Request) {
 		Items []entities.Item `json:"items"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		httputil.WriteError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
 	if len(body.Items) == 0 {
-		writeError(w, http.StatusBadRequest, "items cannot be empty")
+		httputil.WriteError(w, http.StatusBadRequest, "items cannot be empty")
 		return
 	}
 
-	job := &entities.Job{
-		ID:    newID(),
+	job := &entities.ItemJob{
+		ID:    httputil.NewID(),
 		Items: body.Items,
 	}
 
 	h.pipe.Submit(r.Context(), job)
 
-	writeJSON(w, http.StatusAccepted, job)
+	httputil.WriteJSON(w, http.StatusAccepted, job)
 }
 
 // GET /jobs
 func (h *handlers) listJobs(w http.ResponseWriter, r *http.Request) {
 	status := r.PathValue("status")
 	allJobs := h.pipe.GetAll()
-	filteredJobs := make([]*entities.Job, 0, len(allJobs))
+	filteredJobs := make([]*entities.ItemJob, 0, len(allJobs))
 	for _, job := range allJobs {
 		if job.Status == status {
 			filteredJobs = append(filteredJobs, job)
 		}
 	}
-	writeJSON(w, http.StatusOK, filteredJobs)
+	httputil.WriteJSON(w, http.StatusOK, filteredJobs)
 }
 
 // GET /jobs/{id}
@@ -64,25 +64,9 @@ func (h *handlers) getJob(w http.ResponseWriter, r *http.Request) {
 
 	job, ok := h.pipe.Get(id)
 	if !ok {
-		writeError(w, http.StatusNotFound, "job not found")
+		httputil.WriteError(w, http.StatusNotFound, "job not found")
 		return
 	}
 
-	writeJSON(w, http.StatusOK, job)
-}
-
-// ── helpers ──────────────────────────────────────────────────────────────────
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
-}
-
-func writeError(w http.ResponseWriter, status int, msg string) {
-	writeJSON(w, status, map[string]string{"error": msg})
-}
-
-func newID() string {
-	return time.Now().Format("20060102150405.999999999")
+	httputil.WriteJSON(w, http.StatusOK, job)
 }

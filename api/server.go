@@ -12,7 +12,7 @@ import (
 // Config holds server dependencies.
 type Config struct {
 	Addr                  string
-	Pipeline              *pipeline.Pipeline
+	Pipeline              *pipeline.ItemPipeline
 	Log                   *slog.Logger
 	ReadTimeoutSeconds    int
 	WriteTimeoutSeconds   int

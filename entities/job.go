@@ -1,7 +1,7 @@
 // Package entities holds the core domain types shared across packages.
 package entities
 
-import "time"
+import wp "github.com/example/pointfive/utils/workerpool"
 
 // Item is a single unit of data to be processed.
 type Item struct {
@@ -16,12 +16,5 @@ type Result struct {
 	Error  string         `json:"error,omitempty"`
 }
 
-// Job is a batch of items submitted for processing.
-type Job struct {
-	ID        string    `json:"id"`
-	Status    string    `json:"status"` // pending | done
-	Items     []Item    `json:"items"`
-	Results   []Result  `json:"results,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	DoneAt    time.Time `json:"done_at,omitempty"`
-}
+// ItemJob is a batch of Items submitted for processing.
+type ItemJob = wp.Job[Item, Result]

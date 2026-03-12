@@ -6,11 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture
 ```
-main.go → api.NewServer() → handlers.go  (HTTP layer)
+main.go → api.NewServer() → handlers.go        (HTTP layer)
                                  ↓
-                         pipeline.Pipeline  (worker pool, job store)
+                         pipeline.ItemPipeline  (thin wiring layer)
                                  ↓
-                         processItem()     (← data transform logic lives here)
+                         utils/workerpool       (generic worker pool, job store)
+                                 ↓
+                         processItem()          (← data transform logic lives here)
 ```
 
 ## Key files
@@ -21,18 +23,21 @@ main.go → api.NewServer() → handlers.go  (HTTP layer)
 | `config/env.go` | Env var key constants (`SERVER_ADDR`, `WORKER_COUNT`, etc.) |
 | `api/server.go` | Mux setup, route registration, `withLogging` middleware |
 | `api/handlers.go` | Handlers, `writeJSON`/`writeError` helpers, `newID()` |
-| `pipeline/pipeline.go` | Worker pool, `map[string]*entities.Job` store (RWMutex), `processItem` |
-| `pipeline/pipeline_test.go` | Unit tests — follow these patterns for new tests |
-| `entities/job.go` | Domain types: `Job`, `Item`, `Result` |
+| `utils/workerpool/workerpool.go` | Generic `Pipeline[In,Out]` + `Job[In,Out]` — portable worker pool infra |
+| `pipeline/item_pipeline.go` | `ItemPipeline` type alias + `NewItemPipeline()` constructor |
+| `pipeline/item_processor.go` | `processItem()` — data transform business logic (extend here) |
+| `pipeline/item_pipeline_test.go` | Integration test: submit + get |
+| `pipeline/item_processor_test.go` | Unit tests for `processItem` transforms |
+| `entities/job.go` | Domain types: `ItemJob` (alias), `Item`, `Result` |
 | `entities/pipeline_settings.go` | `PipelineSettings` (worker count + logger) |
 | `.env` | Default runtime values loaded by Viper on startup |
 
 ## Extension points
 - **New endpoint**: add method to `handlers` struct → register in `NewServer()` mux
-- **New data transform**: edit `processItem()` in `pipeline/pipeline.go`
-- **New job field**: add to `Job` struct in `entities/job.go`, populate in `Submit()` or `process()`
+- **New data transform**: edit `processItem()` in `pipeline/item_processor.go`
+- **New job type** (e.g. ImageJob): (1) add `ImageInput`, `ImageOutput`, `type ImageJob = wp.Job[ImageInput, ImageOutput]` in `entities/`; (2) add `pipeline/image_pipeline.go` with `ImagePipeline` alias + `NewImagePipeline()`; (3) add `pipeline/image_processor.go` with `processImage()`; (4) add handler + route in `api/`
 - **New config value**: add const to `config/env.go`, add field to `AppConfig` in `config/config.go` (SetDefault + GetXxx), add to `.env`
-- **Struct placement**: all structs belong in `entities/`; non-struct code (handlers, logic, server wiring) lives in its own package. Exception: `api.Config` stays in `api/` to avoid import cycles (`*pipeline.Pipeline` field).
+- **Struct placement**: all structs belong in `entities/`; non-struct code (handlers, logic, server wiring) lives in its own package. Exception: `api.Config` stays in `api/` to avoid import cycles (`*pipeline.ItemPipeline` field).
 
 ## Conventions (must follow)
 - Responses: `writeJSON(w, http.StatusXxx, val)` / `writeError(w, http.StatusXxx, "msg")`
@@ -64,6 +69,7 @@ main.go → api.NewServer() → handlers.go  (HTTP layer)
 | Add a new struct field or type | `CLAUDE.md` extension points section |
 | Add/change a convention (logging, errors, etc.) | `CLAUDE.md` conventions section |
 | Add a new make target | `CLAUDE.md` commands section |
+| Add/remove/rename an env var | `config/env.go` + `config/config.go` + `.env` + `README.md` Configuration table |
 | Any of the above | `memory/MEMORY.md` if the pattern is captured there |
 
 After implementing any feature, check: does CLAUDE.md still accurately describe the project?

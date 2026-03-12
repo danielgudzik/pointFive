@@ -22,7 +22,7 @@ func main() {
 
 	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel}))
 
-	pipe := pipeline.New(entities.PipelineSettings{
+	pipe := pipeline.NewItemPipeline(entities.PipelineSettings{
 		WorkerCount: cfg.WorkerCount,
 		Log:         log,
 	})

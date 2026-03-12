@@ -84,12 +84,22 @@ Response (`200 OK`):
 
 ## Configuration
 
-Configuration is set in `main.go`:
+Configuration is loaded from environment variables (or a `.env` file in the project root).
 
-| Field          | Default | Description                       |
-|----------------|---------|-----------------------------------|
-| `WorkerCount`  | `4`     | Number of concurrent workers      |
-| `Addr`         | `:8080` | HTTP listen address               |
+| Env var                   | Default | Description                          |
+|---------------------------|---------|--------------------------------------|
+| `SERVER_ADDR`             | `:8080` | HTTP listen address                  |
+| `WORKER_COUNT`            | `4`     | Number of concurrent workers         |
+| `READ_TIMEOUT_SECONDS`    | `10`    | HTTP read timeout (seconds)          |
+| `WRITE_TIMEOUT_SECONDS`   | `30`    | HTTP write timeout (seconds)         |
+| `SHUTDOWN_TIMEOUT_SECONDS`| `10`    | Graceful shutdown timeout (seconds)  |
+| `LOG_LEVEL`               | `info`  | Log level (`debug`, `info`, `warn`, `error`) |
+
+Override any value by setting the env var before starting the server:
+
+```bash
+SERVER_ADDR=:9090 WORKER_COUNT=8 make run
+```
 
 ## Project Structure
 
