@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"testing"
@@ -28,7 +27,7 @@ func TestSubmitAndGet(t *testing.T) {
 		},
 	}
 
-	p.Submit(context.Background(), job)
+	p.Submit(job)
 
 	// Wait for job to complete (max 2s)
 	deadline := time.Now().Add(2 * time.Second)

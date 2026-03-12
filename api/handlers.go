@@ -40,7 +40,7 @@ func (h *handlers) submitJob(w http.ResponseWriter, r *http.Request) {
 		Items: body.Items,
 	}
 
-	h.pipe.Submit(r.Context(), job)
+	h.pipe.Submit(job)
 
 	httputil.WriteJSON(w, http.StatusAccepted, job)
 }
@@ -56,6 +56,24 @@ func (h *handlers) listJobs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	httputil.WriteJSON(w, http.StatusOK, filteredJobs)
+}
+
+// DELETE /jobs/{id}
+func (h *handlers) cancelJob(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	job, ok := h.pipe.Get(id)
+	if !ok {
+		httputil.WriteError(w, http.StatusNotFound, "job not found")
+		return
+	}
+	if job.Status != "pending" {
+		httputil.WriteError(w, http.StatusConflict, "job is not pending")
+		return
+	}
+
+	h.pipe.Cancel(id)
+	httputil.WriteJSON(w, http.StatusOK, map[string]string{"status": "cancelled"})
 }
 
 // GET /jobs/{id}
