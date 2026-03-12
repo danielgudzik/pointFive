@@ -6,10 +6,12 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/example/pointfive/entities"
 )
 
 func newTestPipeline() *Pipeline {
-	return New(Config{
+	return New(entities.PipelineSettings{
 		WorkerCount: 2,
 		Log:         slog.New(slog.NewTextHandler(os.Stdout, nil)),
 	})
@@ -18,9 +20,9 @@ func newTestPipeline() *Pipeline {
 func TestSubmitAndGet(t *testing.T) {
 	p := newTestPipeline()
 
-	job := &Job{
+	job := &entities.Job{
 		ID: "test-1",
-		Items: []Item{
+		Items: []entities.Item{
 			{ID: "a", Payload: map[string]any{"name": "alice", "score": float64(10)}},
 			{ID: "b", Payload: map[string]any{"name": "bob"}},
 		},
@@ -52,7 +54,7 @@ func TestSubmitAndGet(t *testing.T) {
 
 func TestProcessItemTransformsStrings(t *testing.T) {
 	p := newTestPipeline()
-	item := Item{ID: "x", Payload: map[string]any{"city": "NYC"}}
+	item := entities.Item{ID: "x", Payload: map[string]any{"city": "NYC"}}
 
 	result := p.processItem(context.Background(), item)
 
@@ -67,7 +69,7 @@ func TestProcessItemTransformsStrings(t *testing.T) {
 
 func TestProcessItemDoublesNumbers(t *testing.T) {
 	p := newTestPipeline()
-	item := Item{ID: "x", Payload: map[string]any{"count": float64(5)}}
+	item := entities.Item{ID: "x", Payload: map[string]any{"count": float64(5)}}
 
 	result := p.processItem(context.Background(), item)
 

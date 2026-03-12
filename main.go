@@ -8,30 +8,38 @@ import (
 	"syscall"
 
 	"github.com/example/pointfive/api"
+	"github.com/example/pointfive/config"
+	"github.com/example/pointfive/entities"
 	"github.com/example/pointfive/pipeline"
 )
 
 func main() {
-	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	cfg, err := config.Load()
+	if err != nil {
+		slog.Error("failed to load config", "err", err)
+		os.Exit(1)
+	}
 
-	// Pipeline: the data processing engine
-	// Change workerCount to control parallelism
-	pipe := pipeline.New(pipeline.Config{
-		WorkerCount: 4,
+	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel}))
+
+	pipe := pipeline.New(entities.PipelineSettings{
+		WorkerCount: cfg.WorkerCount,
 		Log:         log,
 	})
 
-	// API server: exposes the pipeline over HTTP
 	srv := api.NewServer(api.Config{
-		Addr:     ":8080",
-		Pipeline: pipe,
-		Log:      log,
+		Addr:                   cfg.ServerAddr,
+		Pipeline:               pipe,
+		Log:                    log,
+		ReadTimeoutSeconds:     cfg.ReadTimeoutSeconds,
+		WriteTimeoutSeconds:    cfg.WriteTimeoutSeconds,
+		ShutdownTimeoutSeconds: cfg.ShutdownTimeoutSeconds,
 	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	log.Info("server listening", "addr", ":8080")
+	log.Info("server listening", "addr", cfg.ServerAddr)
 	if err := srv.Run(ctx); err != nil {
 		log.Error("server stopped", "err", err)
 		os.Exit(1)

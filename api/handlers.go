@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/example/pointfive/entities"
 	"github.com/example/pointfive/pipeline"
 )
 
@@ -23,7 +24,7 @@ func (h *handlers) health(w http.ResponseWriter, r *http.Request) {
 // Body: { "items": [{ "id": "1", "payload": { "name": "alice" } }] }
 func (h *handlers) submitJob(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Items []pipeline.Item `json:"items"`
+		Items []entities.Item `json:"items"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -34,7 +35,7 @@ func (h *handlers) submitJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job := &pipeline.Job{
+	job := &entities.Job{
 		ID:    newID(),
 		Items: body.Items,
 	}
@@ -42,6 +43,19 @@ func (h *handlers) submitJob(w http.ResponseWriter, r *http.Request) {
 	h.pipe.Submit(r.Context(), job)
 
 	writeJSON(w, http.StatusAccepted, job)
+}
+
+// GET /jobs
+func (h *handlers) listJobs(w http.ResponseWriter, r *http.Request) {
+	status := r.PathValue("status")
+	allJobs := h.pipe.GetAll()
+	filteredJobs := make([]*entities.Job, 0, len(allJobs))
+	for _, job := range allJobs {
+		if job.Status == status {
+			filteredJobs = append(filteredJobs, job)
+		}
+	}
+	writeJSON(w, http.StatusOK, filteredJobs)
 }
 
 // GET /jobs/{id}

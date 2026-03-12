@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # pointFive — Interview Context
 
 ## Architecture
@@ -12,28 +16,45 @@ main.go → api.NewServer() → handlers.go  (HTTP layer)
 ## Key files
 | File | Role |
 |------|------|
-| `main.go` | Wires pipeline + HTTP server, signal handling |
+| `main.go` | Wires config → pipeline → HTTP server, signal handling |
+| `config/config.go` | `AppConfig`, `Load()` — Viper-backed config loader (env vars + `.env`) |
+| `config/env.go` | Env var key constants (`SERVER_ADDR`, `WORKER_COUNT`, etc.) |
 | `api/server.go` | Mux setup, route registration, `withLogging` middleware |
 | `api/handlers.go` | Handlers, `writeJSON`/`writeError` helpers, `newID()` |
-| `pipeline/pipeline.go` | Worker pool, `map[string]*Job` store (RWMutex), `processItem` |
+| `pipeline/pipeline.go` | Worker pool, `map[string]*entities.Job` store (RWMutex), `processItem` |
 | `pipeline/pipeline_test.go` | Unit tests — follow these patterns for new tests |
+| `entities/job.go` | Domain types: `Job`, `Item`, `Result` |
+| `entities/pipeline_settings.go` | `PipelineSettings` (worker count + logger) |
+| `.env` | Default runtime values loaded by Viper on startup |
 
 ## Extension points
 - **New endpoint**: add method to `handlers` struct → register in `NewServer()` mux
 - **New data transform**: edit `processItem()` in `pipeline/pipeline.go`
-- **New job field**: add to `Job` struct, populate in `Submit()` or `process()`
+- **New job field**: add to `Job` struct in `entities/job.go`, populate in `Submit()` or `process()`
+- **New config value**: add const to `config/env.go`, add field to `AppConfig` in `config/config.go` (SetDefault + GetXxx), add to `.env`
+- **Struct placement**: all structs belong in `entities/`; non-struct code (handlers, logic, server wiring) lives in its own package. Exception: `api.Config` stays in `api/` to avoid import cycles (`*pipeline.Pipeline` field).
 
 ## Conventions (must follow)
 - Responses: `writeJSON(w, http.StatusXxx, val)` / `writeError(w, http.StatusXxx, "msg")`
 - Logging: `h.log.Info("msg", "key", val)` via `log/slog`
 - Thread safety: `p.mu.Lock()` writes, `p.mu.RLock()` reads on `p.jobs`
 - Route syntax: `"METHOD /path/{param}"` (Go 1.22 mux); path params via `r.PathValue("name")`
-- No external dependencies — stdlib only
+- Config: `config.Load()` returns `*AppConfig`; use `config.SERVER_ADDR` etc. constants for all env var keys
+- External dependency: `github.com/spf13/viper` (config loading only)
+
+## Current endpoints
+| Method | Path | Handler |
+|--------|------|---------|
+| GET | `/health` | `health` |
+| GET | `/jobs` | `listJobs` |
+| POST | `/jobs` | `submitJob` |
+| GET | `/jobs/{id}` | `getJob` |
 
 ## Commands
 - `make run`  — start server on :8080
 - `make test` — run all tests verbose
 - `make demo` — smoke test (needs server running in another terminal)
+- `go test ./pipeline/... -run TestName` — run a single test by name
 
 ## When you make changes, update these files
 

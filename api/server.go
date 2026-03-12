@@ -11,15 +11,19 @@ import (
 
 // Config holds server dependencies.
 type Config struct {
-	Addr     string
-	Pipeline *pipeline.Pipeline
-	Log      *slog.Logger
+	Addr                  string
+	Pipeline              *pipeline.Pipeline
+	Log                   *slog.Logger
+	ReadTimeoutSeconds    int
+	WriteTimeoutSeconds   int
+	ShutdownTimeoutSeconds int
 }
 
 // Server wraps http.Server with a clean Run method.
 type Server struct {
-	http *http.Server
-	log  *slog.Logger
+	http                  *http.Server
+	log                   *slog.Logger
+	shutdownTimeoutSeconds int
 }
 
 // NewServer wires routes and returns a ready-to-run server.
@@ -28,6 +32,7 @@ func NewServer(cfg Config) *Server {
 	h := &handlers{pipe: cfg.Pipeline, log: cfg.Log}
 
 	mux.HandleFunc("GET /health", h.health)
+	mux.HandleFunc("GET /jobs", h.listJobs)
 	mux.HandleFunc("POST /jobs", h.submitJob)
 	mux.HandleFunc("GET /jobs/{id}", h.getJob)
 
@@ -35,10 +40,11 @@ func NewServer(cfg Config) *Server {
 		http: &http.Server{
 			Addr:         cfg.Addr,
 			Handler:      withLogging(mux, cfg.Log),
-			ReadTimeout:  10 * time.Second,
-			WriteTimeout: 30 * time.Second,
+			ReadTimeout:  time.Duration(cfg.ReadTimeoutSeconds) * time.Second,
+			WriteTimeout: time.Duration(cfg.WriteTimeoutSeconds) * time.Second,
 		},
-		log: cfg.Log,
+		log:                    cfg.Log,
+		shutdownTimeoutSeconds: cfg.ShutdownTimeoutSeconds,
 	}
 }
 
@@ -50,7 +56,7 @@ func (s *Server) Run(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		s.log.Info("shutting down")
-		shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		shutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(s.shutdownTimeoutSeconds)*time.Second)
 		defer cancel()
 		return s.http.Shutdown(shutCtx)
 	case err := <-errc:

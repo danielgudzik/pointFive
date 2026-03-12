@@ -8,59 +8,31 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/example/pointfive/entities"
 )
-
-// Item is a single unit of data to be processed.
-type Item struct {
-	ID      string         `json:"id"`
-	Payload map[string]any `json:"payload"`
-}
-
-// Result holds the processed output of one Item.
-type Result struct {
-	ItemID string         `json:"item_id"`
-	Output map[string]any `json:"output"`
-	Error  string         `json:"error,omitempty"`
-}
-
-// Job is a batch of items submitted for processing.
-type Job struct {
-	ID        string    `json:"id"`
-	Status    string    `json:"status"` // pending | done
-	Items     []Item    `json:"items"`
-	Results   []Result  `json:"results,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	DoneAt    time.Time `json:"done_at,omitempty"`
-}
-
-// Config controls pipeline behaviour.
-type Config struct {
-	WorkerCount int
-	Log         *slog.Logger
-}
 
 // Pipeline manages the worker pool and job store.
 type Pipeline struct {
-	cfg  Config
+	cfg  entities.PipelineSettings
 	mu   sync.RWMutex
-	jobs map[string]*Job
+	jobs map[string]*entities.Job
 }
 
-func New(cfg Config) *Pipeline {
+func New(cfg entities.PipelineSettings) *Pipeline {
 	if cfg.WorkerCount <= 0 {
 		cfg.WorkerCount = 1
 	}
 	return &Pipeline{
 		cfg:  cfg,
-		jobs: make(map[string]*Job),
+		jobs: make(map[string]*entities.Job),
 	}
 }
 
 // Submit enqueues a job and processes it asynchronously.
-func (p *Pipeline) Submit(ctx context.Context, job *Job) {
+func (p *Pipeline) Submit(ctx context.Context, job *entities.Job) {
 	job.Status = "pending"
 	job.CreatedAt = time.Now()
 
@@ -71,8 +43,19 @@ func (p *Pipeline) Submit(ctx context.Context, job *Job) {
 	go p.process(ctx, job)
 }
 
+// GetAll returns all jobs.
+func (p *Pipeline) GetAll() []*entities.Job {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	jobs := make([]*entities.Job, 0, len(p.jobs))
+	for _, job := range p.jobs {
+		jobs = append(jobs, job)
+	}
+	return jobs
+}
+
 // Get retrieves a job by ID.
-func (p *Pipeline) Get(id string) (*Job, bool) {
+func (p *Pipeline) Get(id string) (*entities.Job, bool) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	j, ok := p.jobs[id]
@@ -80,9 +63,9 @@ func (p *Pipeline) Get(id string) (*Job, bool) {
 }
 
 // process fans out items to workers, collects results, then marks the job done.
-func (p *Pipeline) process(ctx context.Context, job *Job) {
-	itemCh := make(chan Item, len(job.Items))
-	resultCh := make(chan Result, len(job.Items))
+func (p *Pipeline) process(ctx context.Context, job *entities.Job) {
+	itemCh := make(chan entities.Item, len(job.Items))
+	resultCh := make(chan entities.Result, len(job.Items))
 
 	// Fan out: start workers
 	var wg sync.WaitGroup
@@ -109,7 +92,7 @@ func (p *Pipeline) process(ctx context.Context, job *Job) {
 	}()
 
 	// Collect results
-	results := make([]Result, 0, len(job.Items))
+	results := make([]entities.Result, 0, len(job.Items))
 	for r := range resultCh {
 		results = append(results, r)
 	}
@@ -126,7 +109,7 @@ func (p *Pipeline) process(ctx context.Context, job *Job) {
 
 // processItem transforms a single item.
 // ── ADD YOUR DATA PROCESSING LOGIC HERE ──
-func (p *Pipeline) processItem(_ context.Context, item Item) Result {
+func (p *Pipeline) processItem(_ context.Context, item entities.Item) entities.Result {
 	out := make(map[string]any, len(item.Payload))
 
 	for k, v := range item.Payload {
@@ -140,5 +123,5 @@ func (p *Pipeline) processItem(_ context.Context, item Item) Result {
 		}
 	}
 
-	return Result{ItemID: item.ID, Output: out}
+	return entities.Result{ItemID: item.ID, Output: out}
 }
