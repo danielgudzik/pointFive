@@ -4,8 +4,10 @@ package entities
 import wp "github.com/example/pointfive/utils/workerpool"
 
 // Item is a single unit of data to be processed.
+// Type must be "text" or "metric"; unrecognised types are passed through unchanged.
 type Item struct {
 	ID      string         `json:"id"`
+	Type    string         `json:"type"` // "text" | "metric"
 	Payload map[string]any `json:"payload"`
 }
 

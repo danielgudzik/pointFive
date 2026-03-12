@@ -7,30 +7,46 @@ import (
 	"github.com/example/pointfive/entities"
 )
 
-func TestProcessItemTransformsStrings(t *testing.T) {
-	item := entities.Item{ID: "x", Payload: map[string]any{"city": "NYC"}}
+func TestProcessTextUppercasesStrings(t *testing.T) {
+	item := entities.Item{ID: "1", Type: "text", Payload: map[string]any{"message": "hello"}}
 
 	result := processItem(context.Background(), item)
 
-	got, ok := result.Output["city"].(string)
-	if !ok {
-		t.Fatal("expected string output for city")
+	if result.Error != "" {
+		t.Fatalf("unexpected error: %s", result.Error)
 	}
-	if got != "[processed] NYC" {
-		t.Errorf("got %q, want %q", got, "[processed] NYC")
+	got, ok := result.Output["message"].(string)
+	if !ok {
+		t.Fatal("expected string output")
+	}
+	if got != "HELLO" {
+		t.Errorf("got %q, want %q", got, "HELLO")
 	}
 }
 
-func TestProcessItemDoublesNumbers(t *testing.T) {
-	item := entities.Item{ID: "x", Payload: map[string]any{"count": float64(5)}}
+func TestProcessMetricDoublesNumbers(t *testing.T) {
+	item := entities.Item{ID: "2", Type: "metric", Payload: map[string]any{"cpu": float64(40)}}
 
 	result := processItem(context.Background(), item)
 
-	got, ok := result.Output["count"].(float64)
-	if !ok {
-		t.Fatal("expected float64 output for count")
+	if result.Error != "" {
+		t.Fatalf("unexpected error: %s", result.Error)
 	}
-	if got != 10 {
-		t.Errorf("got %v, want 10", got)
+	got, ok := result.Output["cpu"].(float64)
+	if !ok {
+		t.Fatal("expected float64 output")
+	}
+	if got != 80 {
+		t.Errorf("got %v, want 80", got)
+	}
+}
+
+func TestProcessItemUnknownTypeReturnsError(t *testing.T) {
+	item := entities.Item{ID: "3", Type: "image", Payload: map[string]any{}}
+
+	result := processItem(context.Background(), item)
+
+	if result.Error == "" {
+		t.Error("expected error for unknown type, got none")
 	}
 }
